@@ -1,0 +1,38 @@
+{
+  "language": "es",
+  "name": "Spanish",
+  "skills": {
+    "vocabulary": {
+      "weight": 1.0,
+      "notes": "Spanish vocabulary breadth: basic nouns/verbs at A1, idiomatic expressions and regionalisms at B2+, technical/academic vocabulary at C1/C2"
+    },
+    "grammar": {
+      "weight": 1.0,
+      "notes": "Spanish grammar: present tense at A1, preterite/imperfect at A2, subjunctive mood at B1/B2, compound and complex structures at C1+"
+    },
+    "reading": {
+      "weight": 1.0,
+      "notes": "Spanish reading comprehension accounting for formal/informal register shifts, regional dialect variations across Spain and Latin America"
+    },
+    "writing": {
+      "weight": 1.2,
+      "notes": "Spanish writing assessment: orthographic accent marks, coherent paragraph structure, register-appropriate connectors, argument development at B2+"
+    },
+    "listening": {
+      "weight": 1.0,
+      "notes": "Spanish listening comprehension across peninsular and Latin American varieties, speed and clarity thresholds per CEFR band"
+    },
+    "speaking": {
+      "weight": 1.0,
+      "notes": "Spanish speaking fluency: pronunciation of rolled 'r', vowel quality, intonation patterns, conversational turn-taking and discourse markers"
+    }
+  },
+  "bands": [
+    "A1",
+    "A2",
+    "B1",
+    "B2",
+    "C1",
+    "C2"
+  ]
+}

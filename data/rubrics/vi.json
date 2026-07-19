@@ -4,27 +4,27 @@
   "skills": {
     "vocabulary": {
       "weight": 1.0,
-      "notes": "Vietnamese vocabulary descriptor"
+      "notes": "Vietnamese vocabulary: tonal distinction awareness, classifier usage, Sino-Vietnamese loanwords, regional dialect variations"
     },
     "grammar": {
       "weight": 1.0,
-      "notes": "Vietnamese grammar descriptor"
+      "notes": "Vietnamese grammar: topic-comment structure, aspect markers (đã, đang, sẽ), classifier system, pronoun hierarchy based on age/status"
     },
     "reading": {
       "weight": 1.0,
-      "notes": "Vietnamese reading descriptor"
+      "notes": "Vietnamese reading comprehension: diacritic sensitivity, understanding implicit meaning in indirect communication style"
     },
     "writing": {
       "weight": 1.2,
-      "notes": "Vietnamese writing descriptor"
+      "notes": "Vietnamese writing: correct use of tone marks, proper word spacing, formal/informal register shifts, coherent argumentation"
     },
     "listening": {
       "weight": 1.0,
-      "notes": "Vietnamese listening descriptor"
+      "notes": "Vietnamese listening: tone perception in connected speech, understanding rapid colloquial reductions, regional accent variations"
     },
     "speaking": {
       "weight": 1.0,
-      "notes": "Vietnamese speaking descriptor"
+      "notes": "Vietnamese speaking: accurate tone production, appropriate pronoun selection based on social context, use of discourse particles (và, nhưng, mà)"
     }
   },
   "bands": [
