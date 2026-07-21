@@ -130,6 +130,7 @@ For a browser demo that talks to the local FastAPI app, see [`web/README.md`](we
 | `nokaman eval batch --out data/out/batch.json` | Score every sample and write a JSON CEFR hit-rate report |
 | `nokaman train …` | Toy calibration with config/report exports |
 | `nokaman gui` / `nokaman-gui` | **Qt desktop app** (needs `.[gui]`) |
+| `nokaman score --sample <file>` | Score a sample and show a rich skill dimension table (vocabulary, grammar, reading, writing, listening, speaking) with CEFR bands |
 | `nokaman serve` | Optional FastAPI |
 
 ```powershell

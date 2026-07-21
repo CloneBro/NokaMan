@@ -12,12 +12,11 @@ from rich.table import Table
 from nokaman import __version__
 from nokaman.config import OUT_DIR, RUNS_DIR
 from nokaman.data.coverage import language_skill_coverage
-from nokaman.data.loader import list_sample_files, list_rubric_files, load_rubric, load_sample
-from nokaman.eval.metrics import batch_evaluate
+from nokaman.data.loader import list_sample_files, list_rubric_files, load_rubric, load_sample, list_placement_files, load_placement_pack
+from nokaman.eval.metrics import _compute_band_accuracy_metrics, batch_evaluate, placement_test
 from nokaman.eval.pipeline import evaluate_demo, evaluate_sample_file, evaluate_text
 from nokaman.eval.session import SessionManager
-from nokaman.models.cefr import cefr_rank, score_to_cefr
-from nokaman.models.toy import ToyAbilityModel
+from nokaman.models.cefr import cefr_rank
 from nokaman.rubrics.registry import (
     SKILLS,
     SUPPORTED_LANGUAGES,
@@ -34,13 +33,13 @@ lang_app = typer.Typer(help="Supported languages")
 rubrics_app = typer.Typer(help="Skill rubrics")
 eval_app = typer.Typer(help="Evaluate learner ability")
 train_app = typer.Typer(help="Training / calibration")
-session_app = typer.Typer(help="Adaptive quiz session (state machine)")
-placement_app = typer.Typer(help="Placement test packs")
 app.add_typer(lang_app, name="languages")
 app.add_typer(rubrics_app, name="rubrics")
 app.add_typer(eval_app, name="eval")
+session_app = typer.Typer(help="Adaptive quiz session (state machine)")
 app.add_typer(session_app, name="session")
 app.add_typer(train_app, name="train")
+placement_app = typer.Typer(help="Placement test packs")
 app.add_typer(placement_app, name="placement")
 console = Console()
 
@@ -91,9 +90,6 @@ def demo_cmd(lang: str = typer.Option("en", "--lang", "-l")) -> None:
     console.print(f"[dim]saved[/dim] {path}")
 
 
-# --------------------- languages ---------------------
-
-
 @lang_app.command("list")
 def languages_list() -> None:
     table = Table(title="Supported languages")
@@ -135,9 +131,6 @@ def languages_coverage(json_output: bool = typer.Option(False, "--json")) -> Non
             *[str(row["skills"].get(skill, 0)) for skill in report["skills"]],
         )
     console.print(table)
-
-
-# --------------------- rubrics ---------------------
 
 
 @rubrics_app.command("list")
@@ -201,9 +194,6 @@ def rubrics_explain(
     console.print(f"Bands: {', '.join(report['bands'])}")
 
 
-# --------------------- eval ---------------------
-
-
 @eval_app.command("text")
 def eval_text(
     lang: str = typer.Option("en", "--lang", "-l"),
@@ -259,29 +249,34 @@ def eval_batch(
     report = batch_evaluate()
     out_path = out or (RUNS_DIR / "batch_eval.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)
-
+    
     if format == "json":
         out_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         console.print(f"[green]batch[/green] n={report['n_samples']} exact={report['exact_cefr_hit_rate']} adjacent={report['adjacent_cefr_hit_rate']}")
         console.print(f"Report: {out_path}")
     elif format == "csv":
-        csv_path = out_path.with_suffix(".csv") if str(out_path).endswith(".json") else out_path
+        # Change extension to .json -> batch_csv_path = out_path = out_path.with_suffix('.csv') if out_path.suffix == '.json' else out_path
+        csv_path = out_path.with_suffix('.csv') if str(out_path).endswith('.json') else out_path
         csv_path.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
-            if report.get("rows"):
-                fieldnames = ["file", "language", "skill", "score", "cefr", "expected_cefr", "distance"]
+        
+        # Write CSV from the rows data
+        with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
+            if report.get('rows'):
+                fieldnames = ['file', 'language', 'skill', 'score', 'cefr', 'expected_cefr', 'distance']
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
-                for row in report["rows"]:
-                    filtered_row = {k: row.get(k, "") for k in fieldnames}
+                for row in report['rows']:
+                    # Only write rows that have the expected fields
+                    filtered_row = {k: row.get(k, '') for k in fieldnames}
                     writer.writerow(filtered_row)
-
+        
         console.print(f"[green]batch[/green] n={report['n_samples']} exact={report['exact_cefr_hit_rate']} adjacent={report['adjacent_cefr_hit_rate']}")
         console.print(f"Report: {csv_path}")
     else:  # table format (default)
         out_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-        console.print(f"[green]batch[/green] n={report['n_samples']} exact={report['exact_cefr_hit_rate']} adjacent={report['adjacent_cefr_hit_rate']}")
+        console.print(
+            f"[green]batch[/green] n={report['n_samples']} exact={report['exact_cefr_hit_rate']} adjacent={report['adjacent_cefr_hit_rate']}"
+        )
         if table and report.get("by_language"):
             t = Table(title="By language")
             t.add_column("Lang")
@@ -332,6 +327,7 @@ def eval_report(
     if not files:
         console.print("[yellow]No samples found[/yellow]")
         raise typer.Exit()
+
     rows = []
     for path in track(files, description="Evaluating..."):
         sample = load_sample(path)
@@ -432,9 +428,6 @@ def eval_placement(
     _print_json(data=result)
 
 
-# --------------------- train ---------------------
-
-
 @train_app.command("toy")
 def train_toy_cmd(
     config: Path | None = typer.Option(
@@ -484,7 +477,7 @@ def train_report(run_id: str | None = typer.Option(None, "--run-id")) -> None:
     console.print(path.read_text(encoding="utf-8"))
 
 
-# --------------------- session ---------------------
+# ── session commands ─────────────────────────────────────────
 
 
 @session_app.command("start")
@@ -514,10 +507,9 @@ def session_snapshot(
     session_id: str = typer.Option(..., "--session-id", "-sid"),
     lang: str = typer.Option("en", "--lang", "-l"),
 ) -> None:
-    """Return a snapshot of an active session."""
+    """Get current session snapshot without submitting an answer."""
     mgr = SessionManager(language=lang, session_id=session_id)
-    result = mgr.snapshot()
-    _print_json(data=result)
+    _print_json(data=mgr.snapshot())
 
 
 @session_app.command("end")
@@ -525,63 +517,7 @@ def session_end(
     session_id: str = typer.Option(..., "--session-id", "-sid"),
     lang: str = typer.Option("en", "--lang", "-l"),
 ) -> None:
-    """End an active session and return the final result."""
+    """Manually end an active session."""
     mgr = SessionManager(language=lang, session_id=session_id)
     result = mgr.end()
     _print_json(data=result)
-
-
-# --------------------- placement ---------------------
-
-
-# --------------------- score ---------------------
-@app.command("score")
-def score_command(
-    sample: Path = typer.Option(..., "--sample", "-s", help="Path to sample file", exists=True, dir_okay=False),
-) -> None:
-    """Score a sample and show dimension table via rich (or plain fallback)."""
-    from rich.console import Console
-    from rich.table import Table
-
-    sample_data = load_sample(sample)
-    language = sample_data.get("language", "en")
-    text = sample_data.get("text", "")
-    # Use the first skill if present, else default to writing for model initialization
-    skill = sample_data.get("skill", "writing")
-
-    # Load the toy model for the language
-    model = ToyAbilityModel(language=language)
-
-    # Define the skills we want to score
-    skills = ["vocabulary", "grammar", "reading", "writing", "listening", "speaking"]
-
-    # Prepare rows for the table
-    rows = []
-    for skill_name in skills:
-        result = model.score_text(text, skill=skill_name)
-        rows.append(
-            {
-                "skill": skill_name,
-                "score": result["score"],
-                "cefr": result["cefr"],
-            }
-        )
-
-    # Try to use rich for a nice table
-    console = Console()
-    table = Table(title=f"Scoring for {sample.name}")
-    table.add_column("Skill", style="cyan")
-    table.add_column("Score", justify="right")
-    table.add_column("CEFR", justify="center")
-
-    for row in rows:
-        table.add_row(row["skill"], f"{row['score']:.2f}", row["cefr"])
-
-    console.print(table)
-    # Also print the overall score and CEFR for reference
-    overall_result = model.score_text(text, skill=skill)
-    console.print(f"\n[bold]Overall ({skill}):[/bold] {overall_result['score']:.2f} -> {overall_result['cefr']}")
-
-
-if __name__ == "__main__":
-    app()
