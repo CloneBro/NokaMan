@@ -538,24 +538,17 @@ def session_end(
 @app.command("score")
 def score_command(
     sample: Path = typer.Option(..., "--sample", "-s", help="Path to sample file", exists=True, dir_okay=False),
+    plain: bool = typer.Option(False, "--plain", help="Plain text table (no Rich formatting)"),
 ) -> None:
-    """Score a sample and show dimension table via rich (or plain fallback)."""
-    from rich.console import Console
-    from rich.table import Table
-
+    """Score a sample and display dimension table via Rich (or plain fallback)."""
     sample_data = load_sample(sample)
     language = sample_data.get("language", "en")
     text = sample_data.get("text", "")
-    # Use the first skill if present, else default to writing for model initialization
     skill = sample_data.get("skill", "writing")
 
-    # Load the toy model for the language
     model = ToyAbilityModel(language=language)
-
-    # Define the skills we want to score
     skills = ["vocabulary", "grammar", "reading", "writing", "listening", "speaking"]
 
-    # Prepare rows for the table
     rows = []
     for skill_name in skills:
         result = model.score_text(text, skill=skill_name)
@@ -567,20 +560,37 @@ def score_command(
             }
         )
 
-    # Try to use rich for a nice table
-    console = Console()
-    table = Table(title=f"Scoring for {sample.name}")
-    table.add_column("Skill", style="cyan")
-    table.add_column("Score", justify="right")
-    table.add_column("CEFR", justify="center")
+    if plain:
+        # Plain-text fallback: no Rich dependency for table rendering
+        header = f"{'Skill':<16} {'Score':>8} {'CEFR':>6}"
+        separator = "-" * len(header)
+        lines = [f"Score for {sample.name}", separator, header, separator]
+        for row in rows:
+            lines.append(f"{row['skill']:<16} {row['score']:>8.2f} {row['cefr']:>6}")
+        print("\n".join(lines))
+    else:
+        from rich.console import Console
+        from rich.table import Table
 
-    for row in rows:
-        table.add_row(row["skill"], f"{row['score']:.2f}", row["cefr"])
+        console = Console()
+        table = Table(title=f"Score for {sample.name}")
+        table.add_column("Skill", style="cyan")
+        table.add_column("Score", justify="right")
+        table.add_column("CEFR", justify="center")
 
-    console.print(table)
+        for row in rows:
+            table.add_row(row["skill"], f"{row['score']:.2f}", row["cefr"])
+
+        console.print(table)
+
     # Also print the overall score and CEFR for reference
     overall_result = model.score_text(text, skill=skill)
-    console.print(f"\n[bold]Overall ({skill}):[/bold] {overall_result['score']:.2f} -> {overall_result['cefr']}")
+    overall_line = f"\nOverall ({skill}): {overall_result['score']:.2f} -> {overall_result['cefr']}"
+    if not plain:
+        from rich.console import Console
+        Console().print(f"\n[bold]Overall ({skill}):[/bold] {overall_result['score']:.2f} -> {overall_result['cefr']}")
+    else:
+        print(overall_line)
 
 
 if __name__ == "__main__":

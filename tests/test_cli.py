@@ -61,6 +61,37 @@ def test_score_command_with_plain_text(tmp_path) -> None:
     assert "vocabulary" in result.output
 
 
+def test_score_command_plain_fallback(tmp_path) -> None:
+    """nokaman score --plain produces plain-text table without Rich formatting."""
+    sample_file = tmp_path / "en_plain_test.json"
+    sample_file.write_text(
+        json.dumps(
+            {
+                "id": "en_plain_test",
+                "language": "en",
+                "skill": "writing",
+                "expected_cefr": "B1",
+                "text": "I have been studying English for three years.",
+            }
+        )
+        + "\n"
+    )
+    result = CliRunner().invoke(
+        app,
+        ["score", "--sample", str(sample_file), "--plain"],
+    )
+    assert result.exit_code == 0, result.output
+    # Plain output: no Rich escape codes, has column headers
+    assert "Skill" in result.output
+    assert "Score" in result.output
+    assert "CEFR" in result.output
+    assert "vocabulary" in result.output
+    assert "Overall" in result.output
+    # No Rich markup in output
+    assert "[bold]" not in result.output
+    assert "[cyan]" not in result.output
+
+
 def test_eval_batch_writes_nested_output_path(tmp_path) -> None:
     out_path = tmp_path / "data" / "out" / "batch.json"
     result = CliRunner().invoke(
